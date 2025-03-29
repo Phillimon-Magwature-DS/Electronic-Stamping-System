@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block title %}Upload Document - Corp24 Stamp System{% endblock %}
+
+{% block content %}
+<main>
+    <div class="upload-container">
+        <h1 class="upload-title">Select or drop the files here to initiate the e-stamping process</h1>
+        
+        <!-- File Upload Section -->
+        <form method="post" enctype="multipart/form-data" id="upload-form">
+            {% csrf_token %}
+            <div class="file-upload-section">
+                <!-- Choose File Button -->
+                <label for="file-input" class="choose-file-btn">
+                    Choose File
+                </label>
+                <input type="file" id="file-input" name="document" accept=".pdf,.doc,.docx,.jpeg,.jpg,.png" required style="display: none;">
+                
+                <!-- Drag and Drop Section -->
+                <div class="drag-drop-section" id="drag-drop-section">
+                    <p>Drag and drop files here</p>
+                </div>
+                
+                <!-- Upload Button -->
+                <button type="submit" class="upload-btn" id="upload-btn">Upload</button>
+            </div>
+        </form>
+    </div>
+</main>
+
+<!-- JavaScript for File Upload -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const dragDropSection = document.getElementById('drag-drop-section');
+        const fileInput = document.getElementById('file-input');
+        const uploadForm = document.getElementById('upload-form');
+
+        // Handle file input change
+        fileInput.addEventListener('change', function () {
+            if (fileInput.files.length > 0) {
+                dragDropSection.innerHTML = `<p>Selected file: ${fileInput.files[0].name}</p>`;
+            }
+        });
+
+        // Handle drag and drop
+        dragDropSection.addEventListener('dragover', function (e) {
+            e.preventDefault();
+            dragDropSection.classList.add('dragover');
+        });
+
+        dragDropSection.addEventListener('dragleave', function () {
+            dragDropSection.classList.remove('dragover');
+        });
+
+        dragDropSection.addEventListener('drop', function (e) {
+            e.preventDefault();
+            dragDropSection.classList.remove('dragover');
+
+            if (e.dataTransfer.files.length > 0) {
+                fileInput.files = e.dataTransfer.files;
+                dragDropSection.innerHTML = `<p>Dropped file: ${fileInput.files[0].name}</p>`;
+            }
+        });
+
+        // Handle form submission
+        uploadForm.addEventListener('submit', function (e) {
+            if (!fileInput.files || fileInput.files.length === 0) {
+                e.preventDefault(); // Prevent form submission
+                dragDropSection.innerHTML = `<p style="color: red;">Please select or drop a file first!</p>`;
+            }
+        });
+    });
+</script>
+{% endblock %}

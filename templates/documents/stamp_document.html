@@ -1,0 +1,365 @@
+{% extends 'base.html' %}
+
+{% block title %}Stamp Document - Corp24 Stamp System{% endblock %}
+
+{% block content %}
+<main>
+    <div class="stamp-container">
+        <!-- Control Section -->
+        <div class="stamp-controls">
+            <div class="controls-right">
+                <span class="control-label">Select:</span>
+                <button id="stamp-btn">Stamp</button>
+                <button id="signature-btn">Signature</button>
+                <button id="logo-btn">Logo</button>
+            </div>
+        </div>
+
+        <!-- File Display Section -->
+        <div class="file-display">
+            {% if file_url %}
+                {% if file_url|lower|slice:'-4:' == '.pdf' %}
+                    <div id="pdf-viewer"></div>
+                {% elif file_url|lower|slice:'-5:' == '.docx' %}
+                    <div id="docx-content"></div>
+                {% else %}
+                    <img src="{{ file_url }}" alt="Uploaded document" class="uploaded-image" id="uploaded-image">
+                {% endif %}
+            {% endif %}
+        </div>
+
+        <!-- Apply Section -->
+        <div class="apply-section">
+            <button id="apply-btn">Apply</button>
+        </div>
+    </div>
+
+    <!-- Modal for Stamp Selection -->
+    <div id="stamp-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Select Stamp</h2>
+            <div class="stamp-gallery">
+                <!-- Stamps will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Signature Selection -->
+    <div id="signature-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Select Signature</h2>
+            <div class="signature-gallery">
+                <!-- Signatures will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Logo Selection -->
+    <div id="logo-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Select Logo</h2>
+            <div class="logo-gallery">
+                <!-- Logos will be loaded here -->
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- JavaScript Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.0/mammoth.browser.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize variables
+    let selectedStamp = null;
+    const fileUrl = "{{ file_url }}";
+    const fileExtension = fileUrl.split('.').pop().toLowerCase();
+    
+    // Initialize PDF viewer if PDF
+    if (fileExtension === 'pdf') {
+        pdfjsLib.getDocument(fileUrl).promise.then(function(pdf) {
+            const pdfViewer = document.getElementById('pdf-viewer');
+            
+            for (let i = 1; i <= pdf.numPages; i++) {
+                pdf.getPage(i).then(function(page) {
+                    const scale = 1.5;
+                    const viewport = page.getViewport({ scale: scale });
+                    
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    
+                    const renderContext = {
+                        canvasContext: context,
+                        viewport: viewport
+                    };
+                    
+                    pdfViewer.appendChild(canvas);
+                    page.render(renderContext);
+                });
+            }
+        });
+    }
+    // Handle DOCX files
+    else if (fileExtension === 'docx') {
+        fetch(fileUrl)
+            .then(response => response.blob())
+            .then(blob => {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    mammoth.extractRawText({ arrayBuffer: event.target.result })
+                        .then(function(result) {
+                            document.getElementById('docx-content').innerHTML = 
+                                `<pre>${result.value}</pre>`;
+                        });
+                };
+                reader.readAsArrayBuffer(blob);
+            });
+    }
+    // Handle images
+    else {
+        const image = document.getElementById('uploaded-image');
+        let zoomLevel = 1;
+        
+        image.addEventListener('click', function() {
+            zoomLevel = zoomLevel === 1 ? 1.5 : 1;
+            image.style.transform = `scale(${zoomLevel})`;
+            image.style.transformOrigin = 'center';
+        });
+    }
+    
+    // Modal functionality
+    const stampBtn = document.getElementById('stamp-btn');
+    const signatureBtn = document.getElementById('signature-btn');
+    const logoBtn = document.getElementById('logo-btn');
+    const modals = document.querySelectorAll('.modal');
+    const closeButtons = document.querySelectorAll('.close');
+    const applyBtn = document.getElementById('apply-btn');
+    
+    // Open modals
+    stampBtn.addEventListener('click', () => openModal('stamp-modal'));
+    signatureBtn.addEventListener('click', () => openModal('signature-modal'));
+    logoBtn.addEventListener('click', () => openModal('logo-modal'));
+    
+    // Close modals
+    closeButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            modals.forEach(modal => modal.style.display = 'none');
+        });
+    });
+    
+    // Close modal when clicking outside
+    window.addEventListener('click', function(e) {
+        if (e.target.classList.contains('modal')) {
+            e.target.style.display = 'none';
+        }
+    });
+    
+    // Apply button functionality
+    applyBtn.addEventListener('click', function() {
+        if (!selectedStamp) {
+            alert('Please select a stamp, signature, or logo first!');
+        } else {
+            // Redirect to the final page (to be defined later)
+            window.location.href = `/final_page/?file=${encodeURIComponent(fileUrl)}&stamp=${encodeURIComponent(selectedStamp)}`;
+        }
+    });
+    
+    function openModal(modalId) {
+        const modal = document.getElementById(modalId);
+        modal.style.display = 'block';
+        
+        // Load stamps/signatures/logos (to be implemented)
+        // Example for stamps:
+        if (modalId === 'stamp-modal') {
+            fetch('/api/stamps/')
+                .then(response => response.json())
+                .then(data => {
+                    const gallery = modal.querySelector('.stamp-gallery');
+                    gallery.innerHTML = '';
+                    data.forEach(stamp => {
+                        const img = document.createElement('img');
+                        img.src = stamp.url;
+                        img.alt = stamp.name;
+                        img.addEventListener('click', function() {
+                            selectedStamp = stamp.url;
+                            modal.style.display = 'none';
+                        });
+                        gallery.appendChild(img);
+                    });
+                });
+        }
+    }
+});
+</script>
+
+<style>
+/* Stamp Document Specific Styles */
+.stamp-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background-color: #f5f5f5;
+}
+
+.stamp-controls {
+    padding: 15px;
+    background-color: #2c3e50;
+    color: white;
+}
+
+.controls-right {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 15px;
+}
+
+.control-label {
+    font-weight: bold;
+    margin-right: 10px;
+}
+
+.stamp-controls button {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 4px;
+    background-color: #3498db;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.stamp-controls button:hover {
+    background-color: #2980b9;
+}
+
+.file-display {
+    flex: 1;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: auto;
+    background-color: #000; /* Black background */
+}
+
+#pdf-viewer, #docx-content {
+    background-color: #000;
+    padding: 20px;
+    border: 2px solid #fff;
+    max-width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+#pdf-viewer canvas {
+    display: block;
+    margin-bottom: 20px;
+    border: 1px solid #fff;
+}
+
+#docx-content pre {
+    color: white;
+    font-family: Arial, sans-serif;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.uploaded-image {
+    max-width: 90%;
+    max-height: 80vh;
+    object-fit: contain;
+    cursor: zoom-in;
+    border: 2px solid #fff;
+}
+
+.uploaded-image.zoomed {
+    cursor: zoom-out;
+}
+
+.apply-section {
+    padding: 15px;
+    background-color: #2c3e50;
+    text-align: center;
+}
+
+#apply-btn {
+    padding: 10px 30px;
+    background-color: #27ae60;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+#apply-btn:hover {
+    background-color: #219653;
+}
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 1000;
+    overflow: auto;
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 5% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 800px;
+    border-radius: 5px;
+    position: relative;
+}
+
+.close {
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    font-size: 28px;
+    font-weight: bold;
+    color: #aaa;
+    cursor: pointer;
+}
+
+.close:hover {
+    color: black;
+}
+
+.stamp-gallery, .signature-gallery, .logo-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.stamp-gallery img, .signature-gallery img, .logo-gallery img {
+    width: 100%;
+    height: auto;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: transform 0.3s;
+}
+
+.stamp-gallery img:hover, .signature-gallery img:hover, .logo-gallery img:hover {
+    transform: scale(1.05);
+}
+</style>
+{% endblock %}

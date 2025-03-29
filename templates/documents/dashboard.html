@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Corp24 Stamp System{% endblock %}
+
+{% block content %}
+<main>
+    <div class="dashboard-container">
+        <div class="welcome-section">
+            <h1>Welcome</h1>
+            <h1>to the</h1>
+            <h1>Stamping System</h1>
+            <button class="get-started-btn" onclick="window.location.href='{% url 'upload_document' %}'">Get Started</button>
+        </div>
+    </div>
+</main>
+{% endblock %}
